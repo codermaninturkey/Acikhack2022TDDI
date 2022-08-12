@@ -226,3 +226,105 @@ async def from_file(file: UploadFile = File(None), pageNumbers: str = Form(""), 
     else:
         return JSONResponse(content={"data":{"status": False, "filename": "{0}".format(file.filename), "error": "Uyumsuz dosya formatı. Bunları kllanabilirsiniz {0}".format(str([".pdf",".jpeg", ".jpg", ".png", ".bmp", ".gif",".tif",".tiff"]))}}, status_code=200)
 
+@routes.post("/byte-array")
+async def from_byte(model: ByteModel):
+
+    try:
+
+        imgdata = base64.b64decode(model.data.content)
+
+        tif = Image.open(BytesIO(imgdata))
+
+        if tif.format.lower() in ["tif", "tiff"]:
+
+            pageCounts = tif.n_frames  # default total page count
+
+            image_list = list(range(pageCounts))
+
+            if model.data.page == "full":  #page = full ise tüm belgeyi ocr eder
+
+                image_list = list(range(pageCounts))
+
+            elif len(model.data.page.strip()) == 0:#page = içerik boş ise ise tüm belgeyi ocr eder
+
+                image_list.clear()
+                image_list.append(0)
+
+            elif not len(model.data.page.strip()) == 0:#page alanı gönderilmemiş ise ilk sayfayı ocr eder
+
+                pageError = 0
+
+                pages = model.data.page.split(",")
+
+                for i in range(len(pages)):
+
+                    if int(pages[i]) > pageCounts:
+                        pageError = 1
+
+                    if int(pages[i]) < 0:
+                        pageError = 2
+
+                if pageError == 1:
+                    return {"data": {"status": False, "filename": None, "error": "Belirttiğiniz sayfalar içerisinde toplam sayfa boyutundan büyük sayfa numaraları mevcuttur."}}
+
+                if pageError == 2:
+                    return {"data": {"status": False, "filename": None, "error": "Belirttiğiniz sayfalar içerisinde 0 veya daha küçük numaraları sayfalar mevcuttur. "}}
+
+                image_list.clear()
+
+                for page in pages:
+                    image_list.append(page)
+
+            input_list = [[BytesIO(imgdata), image_list[i], model.data.stats,model.data.deep] for i in range(len(image_list))]
+
+            if len(image_list) == 1:
+
+                pool = multiprocessing.Pool(processes=1)
+
+            elif len(image_list) > 1 and len(image_list) < 6:
+
+                pool = multiprocessing.Pool(processes=len(image_list))
+
+            elif len(image_list) > 6:
+
+                pool = multiprocessing.Pool(processes=6)
+
+            else:
+
+                pool = multiprocessing.Pool(processes=3)
+
+            returnPool = pool.starmap(poolOCR, input_list)
+
+            pool.close()
+
+            pool.join()
+
+            return {"data": {"filename": tif.format, "ocrResponses": returnPool}, "detailMessage": "",
+                    "status": "SUCCESS"}
+        else: #gelen belge tiff harici bir image ise
+
+            tif.seek(0)
+
+            tifff = np.array(tif)
+
+            if model.data.stats:
+
+                text = detailsOCR(tifff,model.data.deep)
+
+                confidence = getConfidence()
+
+                responseEnd = [{"text": text, "pageNumber": None, "confidence": confidence}]
+
+                return {"data": {"filename": None, "ocrResponses": responseEnd}, "detailMessage": "", "status": "SUCCESS"}
+
+
+            if model.data.deep:
+                text = pytesseract.image_to_string(tifff, lang="tur", config='--psm 6')
+            else:
+                text = pytesseract.image_to_string(tifff, lang="tur")
+
+            responseEnd = [{"text":text,"pageNumber": None, "confidence": None}]
+
+            return {"data":{"filename":None, "ocrResponses":responseEnd},"detailMessage":"","status":"SUCCESS"}
+    except Exception as e:
+        return JSONResponse(content={"data": {"status": False, "filename": "", "error": str(e)}}, status_code=200)
