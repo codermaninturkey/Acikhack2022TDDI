@@ -31,7 +31,9 @@ deep: ocr işleminin derinliğidir. işlemin derinliği ve yüzeyselliğini beli
 
 /byte-array:byte olarak gelen image verileri için ocr işlemleri yapan endpint noktası. 4 adet parametre alır.. file protokollerini devre dışı bıraktığı için biraz dha hızlı çalıştığı söylenebilir.
 Post Body Json yapısı şu şekildedir:
+
 **Request Model Schema:
+
 {
 "applicationName": "appname",
 "data": {
@@ -42,12 +44,14 @@ Post Body Json yapısı şu şekildedir:
 }
 }**
 
+
 parametre açıklamaları ise /multipart ile aynı olmakla beraber şu şekildedir:
 file: image file
 pageNumbers: özellikle tiff belgeleri ve pdf belgeleri için hangi sayfaların ocr edilmesi istenildiğini tutar. Defalt olarak "o" dır. 0 olması durumunda tüm sayfayı işleme alır. Eğer ki 2,4,6 olarak verilir sadece bu sayfaları ocr ederek sonuç döndürür.
 **stats: **bu değişken ocr işlemi sonra confidence değeri dönüp dönmeyeceğini belirten boolean türünde bir veridir. Default olarak false dir.
 **deep: **ocr işleminin derinliğidir. işlemin derinliği ve yüzeyselliğini belirtir. Gürültü belgeler için true seçilmesi önerilir, default olarak false değerini alır.
 **Response Model Schema:
+
 {
 "data": {
 "filename": null,
@@ -62,6 +66,7 @@ pageNumbers: özellikle tiff belgeleri ve pdf belgeleri için hangi sayfaların 
 "detailMessage": "",
 "status": "SUCCESS"
 }**
+
 
 Şimdi servisi ayağa kaldırıp, swagger-ui arayüzü ile ve postman üzerinden test edebiliriz.
 ayağa kaldırmak işin:
